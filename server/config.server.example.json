@@ -1,0 +1,52 @@
+{
+  "_说明": "McLink 服务端配置模板。复制成 config.server.json 后按注释填写。放在服务器上，和 mclink_server.py 同目录。",
+  "_安全提示": "⚠️ 这个文件含有你自己的密钥，**不要提交到公开仓库**（.gitignore 已经排除它）。",
+  "bind": "0.0.0.0",
+  "_端口说明": "McLink 自己只占一个端口号：TCP 7000 同时承载控制通道和 TCP 数据通道，UDP 7000 承载 UDP 隧道。防火墙里放行 TCP 7000 和 UDP 7000 两条即可。",
+  "control_port": 7000,
+  "_data_port": "留空或写成与 control_port 相同 = 数据通道复用控制端口（推荐，少一条防火墙规则）。只有想把控制/数据分开时才填别的端口。",
+  "data_port": 7000,
+  "_udp_port": "UDP 隧道端口。写成与 control_port 相同，防火墙只需记一个端口号。",
+  "udp_port": 7000,
+  "_tokens": "客户端密钥，必须与 config.client.json 的 server.token 完全一致。可填多个，一行一个。用下面的命令生成一个强随机值：python3 -c \"import secrets;print(secrets.token_urlsafe(32))\"",
+  "tokens": [
+    "CHANGE_ME_CLIENT_TOKEN"
+  ],
+  "_public_ip": "留空则自动探测：先问阿里云元数据服务（能拿到弹性公网 IP），再用出口 IP 兜底。探测不到时会由客户端使用它自己配置的 server.host。地址显示不对就在这里手动填公网 IP。",
+  "public_ip": "",
+  "_allowed_ports": "允许客户端申请的公网端口白名单。推荐：两个 Minecraft 默认端口 + 一个大端口池，这样以后加新游戏不用再改防火墙。注意别和内核临时端口范围（一般是 32768-60999）重叠。",
+  "allowed_ports": [
+    [
+      25565,
+      25565
+    ],
+    [
+      19132,
+      19132
+    ],
+    [
+      25000,
+      26000
+    ]
+  ],
+  "max_conns_per_mapping": 256,
+  "dial_timeout_s": 8,
+  "idle_timeout_s": 300,
+  "heartbeat_s": 20,
+  "_log": "log_level 可选 debug/info/warn/error；log_file 留空则只输出到控制台（systemd 会记录到 journal）",
+  "log_level": "info",
+  "log_file": "",
+  "_license_说明": "分发授权。admin_token 是只有你自己知道的管理员密钥（客户端填它就能进管理员模式）。license_required = true 时，别人必须用你生成的 24 小时一次性密钥激活才能用；改成 false 就等于谁拿到客户端都能用，**强烈不建议**。打开前务必确认 admin_token 已填，否则你会把自己锁在外面。",
+  "admin_token": "CHANGE_ME_ADMIN_TOKEN",
+  "_license_required": "true = 必须激活才能用（分发版必须保持 true）；false = 谁拿到客户端都能用",
+  "license_required": true,
+  "_license_file": "授权数据存哪，留空 = 脚本同目录的 licenses.json（权限 600，原子写入）",
+  "license_file": "",
+  "_tls_说明": "true = 控制通道和数据通道都走 TLS 加密（强烈建议开）。证书不存在时会用 openssl 自动自签一张 10 年期的 server.crt。客户端第一次连接会自动记住证书指纹，之后必须一致 —— 中间人换不了证书。",
+  "tls": true,
+  "_tls_cert": "留空 = 脚本同目录的 server.crt",
+  "tls_cert": "",
+  "_tls_key": "留空 = 脚本同目录的 server.key",
+  "tls_key": "",
+  "_admin_token_说明": "只有你自己知道的管理员密钥。客户端填它就能进管理员模式，用来生成一次性邀请码、管理用户权限。★ 分发给别人的客户端包里必须清空这一项。"
+}

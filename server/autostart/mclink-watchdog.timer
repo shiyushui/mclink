@@ -1,0 +1,14 @@
+[Unit]
+Description=每 3 分钟检查一次 McLink 是否正常
+
+[Timer]
+# 开机 3 分钟后再开始检查，别跟启动过程抢资源
+OnBootSec=3min
+OnUnitActiveSec=3min
+AccuracySec=15s
+# 补上错过的检查（机器休眠、负载过高导致 timer 没跑）
+Persistent=true
+Unit=mclink-watchdog.service
+
+[Install]
+WantedBy=timers.target

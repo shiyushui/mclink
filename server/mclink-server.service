@@ -1,0 +1,29 @@
+[Unit]
+Description=McLink 端口映射服务端
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mclink
+Group=mclink
+WorkingDirectory=/opt/mclink
+ExecStart=__PYTHON__ /opt/mclink/mclink_server.py -c /opt/mclink/config.server.json
+Restart=always
+RestartSec=3
+
+# 端口转发需要一定的并发连接数
+LimitNOFILE=65535
+
+# 基础加固（不需要 root，只要不监听 <1024 的端口就行）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mclink
+
+[Install]
+WantedBy=multi-user.target

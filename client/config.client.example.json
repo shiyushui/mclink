@@ -1,0 +1,49 @@
+{
+  "server": {
+    "host": "YOUR_SERVER_IP",
+    "control_port": 7000,
+    "data_port": 7000,
+    "udp_port": 7000,
+    "token": "CHANGE_ME_CLIENT_TOKEN",
+    "admin_token": "",
+    "tls": true,
+    "cert_fingerprint": "",
+    "_host": "你的服务器公网 IP 或域名",
+    "_token": "必须与服务端 config.server.json 的 tokens 中的某一个完全一致",
+    "_admin_token": "留空 = 普通客户端。只有你自己的机器才填管理员密钥",
+    "_tls": "true = 用 TLS 加密连接（服务端开了这里也要开）。cert_fingerprint 第一次连接会自动填上。"
+  },
+  "web": {
+    "host": "127.0.0.1",
+    "port": 8787,
+    "token": "",
+    "_说明": "本地网页控制台。默认只监听 127.0.0.1，只有本机能打开，最安全。",
+    "_token": "留空则不校验；若把 host 改成 0.0.0.0 让局域网访问，务必设置一个口令"
+  },
+  "client": {
+    "nickname": "",
+    "auto_update": true,
+    "update_interval_min": 30,
+    "auto_start_mappings": false,
+    "_nickname": "你的昵称，管理员在控制台「客户端」页看得到。留空就用机器名。",
+    "_auto_update": "true = 连上服务端后自动问有没有新版本（只提示，点了才装）",
+    "_update_interval_min": "自动检查的间隔（分钟），0 = 只在启动时查一次",
+    "_auto_start_mappings": "false = 打开软件后不自动开启映射，点一下卡片开关或「启动全部映射」才开始转发；true = 启动就把启用的映射跑起来"
+  },
+  "mappings": [
+    {
+      "id": "mc-java",
+      "name": "Minecraft Java 版",
+      "proto": "tcp",
+      "local_host": "127.0.0.1",
+      "local_port": 25565,
+      "remote_port": 25565,
+      "enabled": true
+    }
+  ],
+  "log_level": "info",
+  "log_file": "logs/client.log",
+  "_说明": "McLink 客户端配置。放在玩游戏那台电脑上，和 mclink_client.py 同目录。",
+  "_mappings": "映射列表，也可以在控制台界面里增删改，界面会自动写回这个文件",
+  "_client": "昵称 / 自动更新相关设置；在客户端「设置」里改即可，会自动写回这里"
+}

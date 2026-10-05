@@ -1,0 +1,9 @@
+[Unit]
+Description=McLink 看门狗（检查服务是不是真的在干活）
+After=mclink.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mclink/mclink-watchdog.sh
+# 看门狗自己出问题也不要污染 systemd 的状态
+SuccessExitStatus=0 1

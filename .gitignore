@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------- 凭据：绝对不要提交
+# SSH 私钥（能直接登录你的服务器）
+deploy-key/
+*.pem
+*.key
+id_rsa
+id_ed25519
+id_ed25519.pub
+known_hosts
+
+# 含密钥的真实配置（仓库里只放 *.example.json）
+server/config.server.json
+client/config.client.json
+client/config.*.json
+!client/config.client.example.json
+!server/config.server.example.json
+
+# 授权库（含用户 IP / 昵称 / 设备指纹，属于个人信息）
+licenses.json
+server/licenses.json
+client/licenses.json
+
+# TLS 证书与私钥
+server.crt
+server.key
+*.crt
+*.csr
+*.key
+
+# 例外：这对是**故意公开**的一次性测试证书（见 test/fixtures/README.md）
+!test/fixtures/TEST-ONLY.crt
+!test/fixtures/TEST-ONLY.key
+
+# ---------------------------------------------------------------- 运行期产物
+logs/
+*.log
+instance.port
+update-cache/
+
+# ---------------------------------------------------------------- 构建产物
+dist/
+dist.zip
+*.zip
+client/dist/
+client/McLink.exe
+*.lnk
+client/launcher/bin/
+client/launcher/obj/
+
+# ---------------------------------------------------------------- Python / 编辑器
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.piptmp/
+.ctmp/
+
+# ---------------------------------------------------------------- 测试临时目录
+test/_tmp_*/
+test/_tmp_resilience/
+test/**/client.json
+test/**/server.json
+
+# ---------------------------------------------------------------- 操作系统 / IDE
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# 测试跑完留下的临时目录 / Python 缓存
+**/__pycache__/
