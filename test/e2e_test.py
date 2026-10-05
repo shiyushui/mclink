@@ -421,6 +421,57 @@ async def main() -> int:
         check("删除后映射消失",
               all(m["id"] not in ("new1", "outside") for m in state["mappings"]))
 
+        # ---- 核心回归：删除映射后，服务端必须真的把公网端口放掉 ----
+        # 曾经有个 bug：客户端 delete() 只把映射从 self.mappings 里 pop 掉，
+        # 从没通知服务端；而服务端的注销是靠同步循环遍历 self.mappings 发现
+        # enabled=False 才发的 —— 映射被 pop 了，循环就再也看不到它，
+        # 于是服务端那条登记永远留着，**公网端口一直被幽灵占用**：
+        # 换客户端/重新加同一个端口都会报 "端口已被其他客户端占用"。
+        print("\n== 删除映射后公网端口必须释放 ==")
+        import socket as _sock
+
+        def _can_bind(port):
+            """能不能绑上这个端口（能绑 = 服务端已不再监听）。
+
+            注意必须绑 **0.0.0.0**，不能绑 127.0.0.1 —— 服务端绑的是通配地址，
+            而 Windows 上"127.0.0.1:X"和"0.0.0.0:X"可以**并存**，
+            用 127.0.0.1 探会误判成"端口空闲"（我第一版就踩了这个，断言变成假通过）。
+            """
+            s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+            try:
+                s.bind(("0.0.0.0", port))
+                return True
+            except OSError:
+                return False
+            finally:
+                s.close()
+
+        # 加一条映射专门用来删（17102 在 allowed_ports 池里且没被占用；
+        # 17100 被常驻的 tcp1 占着，17101 是 UDP，都不能用）
+        GHOST_PORT = 17102
+        st, rep = await http("POST", "/api/mappings", {
+            "id": "ghost", "name": "幽灵测试", "proto": "tcp",
+            "local_host": HOST, "local_port": LOCAL_TCP,
+            "remote_port": GHOST_PORT, "enabled": True})
+        await asyncio.sleep(2.0)
+        st, state = await http("GET", "/api/state")
+        gm = next((m for m in state["mappings"] if m["id"] == "ghost"), None)
+        check("幽灵映射已生效（端口被服务端占着）",
+              gm is not None and gm["status"] == "active",
+              str(rep)[:80] + " | " + str(gm and gm["status"]))
+        check("此时外部绑不上该端口（符合预期）", not _can_bind(GHOST_PORT),
+              f"{GHOST_PORT} 居然能绑")
+
+        st, rep = await http("DELETE", "/api/mappings/ghost")
+        check("删除该映射", st == 200 and rep.get("ok"), str(rep))
+        await asyncio.sleep(2.5)
+        st, state = await http("GET", "/api/state")
+        check("客户端本地已无该映射",
+              not any(m["id"] == "ghost" for m in state["mappings"]),
+              str([m["id"] for m in state["mappings"]]))
+        check("删除后公网端口已释放（服务端不再监听）", _can_bind(GHOST_PORT),
+              f"端口 {GHOST_PORT} 仍被占用 -> unregister 没发到服务端")
+
         st, rep = await http("GET", "/api/server_info")
         check("GET /api/server_info", st == 200 and rep.get("ok"), str(rep.get("info")))
 

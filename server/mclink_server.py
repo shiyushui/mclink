@@ -47,7 +47,7 @@ except ImportError:                                  # 允许从别的目录直�
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from mclink_license import LicenseStore, RateLimiter, mask_code
 
-VERSION = "1.2.8"
+VERSION = "1.2.9"
 
 # ---------------------------------------------------------------- 常量
 

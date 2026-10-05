@@ -162,9 +162,9 @@ Windows 上还可以跑 `tools/verify_taskbar_icon.ps1` 检查任务栏图标。
 | `gui_integration_test.py` | 18/18 |
 | `admin_smoke_test.py` | 113/113 |
 | `update_e2e_test.py` | 40/40 |
-| `e2e_test.py` | 38/38 |
+| `e2e_test.py` | 43/43 |
 | `license_e2e_test.py` | 28/28 |
-| **合计** | **372 项，全绿** |
+| **合计** | **377 项，全绿** |
 
 `tls_test.py` 的「UDP 收发正常（含首包）」曾经在 Windows 上稳定失败，
 排查后确认是**真实缺陷**（不只是测试问题）：客户端收到 `register_ok` 就显示

@@ -40,7 +40,7 @@ import traceback
 import uuid
 from urllib.parse import urlsplit, parse_qs
 
-VERSION = "1.2.8"
+VERSION = "1.2.9"
 # 发布批次（年月日）。自动更新比 VERSION 先比 release，再比版本号 ——
 # 这样同一天改两版也能分辨出来。version.json 里是权威值，这里只是兜底。
 RELEASE = "20261005"
@@ -338,6 +338,10 @@ class Mapping:
         # 关掉（默认）时启动后**不自动开映射**，要用户点一下卡片开关
         # （或点「启动全部映射」）才 set_enabled 把它放行。
         self._start_gate = False
+        # 待删除标记：delete() 置 True，等同步循环发完 unregister、
+        # 服务端回了 unregister_ok 才真正从 mappings 里移除。
+        # 不立刻删是为了让服务端也能收到注销 —— 否则公网端口会被幽灵占用。
+        self._pending_delete = False
 
     def gate(self, on: bool) -> None:
         """放行/拦住这条映射的注册（用户显式操作时调用）。"""
@@ -384,10 +388,17 @@ class Mapping:
     def snapshot(self, public_ip=None) -> dict:
         addr = f"{public_ip}:{self.remote_port}" if public_ip else None
         status, error = self.effective()
+        # 待删除的映射对外一律报"已停用"：UI 上立刻变灰，等 unregister_ok
+        # 之后整个从列表里消失（见 _on_control 的 unregister_ok 分支）
+        pending = getattr(self, "_pending_delete", False)
+        if pending:
+            status, error = "inactive", None
         return {
             "id": self.id, "name": self.name, "proto": self.proto,
             "local_host": self.local_host, "local_port": self.local_port,
-            "remote_port": self.remote_port, "enabled": self.enabled,
+            "remote_port": self.remote_port,
+            "enabled": (False if pending else self.enabled),
+            "pending_delete": pending,
             "tunnel_id": self.tunnel_id,          # UDP 隧道编号，排查问题时有用
             "status": status, "error": error,
             "rx_bytes": self.rx, "tx_bytes": self.tx,
@@ -921,7 +932,16 @@ class Agent:
                 m.retry_at = now() + 10.0   # 10 秒后再试，避免刷屏
                 self.log.error(f"映射注册失败 [{m.name}]: {m.error}")
         elif t == "unregister_ok":
-            pass
+            # 服务端确认注销了 -> 这时才真正把"待删除"的映射从本地移除
+            _mid = str(msg.get("mid") or "")
+            _m = self.mappings.get(_mid)
+            if _m is not None and getattr(_m, "_pending_delete", False):
+                self.mappings.pop(_mid, None)
+                self.tunnel_index.pop(_m.tunnel_id, None)
+                for _k in [k for k in self.udp_sessions if k[0] == _mid]:
+                    self.udp_sessions.pop(_k).close()
+                self.save_config()          # 顺手把它从配置文件里清掉
+                self.log.debug(f"映射已从服务端注销并移除: {_mid}")
         elif t == "stats":
             self._merge_stats(msg.get("data") or {})
         elif t == "pong":
@@ -1618,12 +1638,33 @@ class Agent:
         return m
 
     def delete(self, mid: str) -> bool:
-        m = self.mappings.pop(mid, None)
+        """删除映射。
+
+        ⚠️ 关键：**必须通知服务端注销**，不能只从本地字典里删掉。
+
+        原来的实现是 `self.mappings.pop(mid)` 然后就结束了 —— 而服务端的注销
+        是靠 `_sync_registrations()` 遍历 `self.mappings`、发现某条 `enabled`
+        变成 False 才发 unregister 的。映射被 pop 掉之后，这个循环**再也看不到它**，
+        于是服务端那条登记永远留着、**公网端口一直被幽灵占用**：
+        用户看到的现象就是"删了映射之后那个端口死活绑不上/换客户端也用不了"。
+        （实测：服务端进程一直把该端口挂在 LISTENING，删完 10 秒都不放。）
+
+        修法：不立刻 pop，而是标记 `enabled=False` + `_pending_delete=True`，
+        交给同步循环去发 unregister；服务端确认后（unregister_ok）才真正移除。
+        这样断线重连时也能补发，不会漏。
+        """
+        m = self.mappings.get(mid)
         if not m:
             return False
+        m.enabled = False
+        m.gate(False)
+        m._pending_delete = True
+        # 本地立刻停止占用：隧道索引 / 本地 UDP 会话 / 状态
         self.tunnel_index.pop(m.tunnel_id, None)
         for key in [k for k in self.udp_sessions if k[0] == mid]:
             self.udp_sessions.pop(key).close()
+        m.status = "inactive"
+        m.error = None
         self._sessions_dirty = True
         self._udp_dirty = True
         self.save_config()
