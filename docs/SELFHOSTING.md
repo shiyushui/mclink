@@ -470,6 +470,63 @@ powershell -ExecutionPolicy Bypass -File C:\Users\<你的用户名>\Desktop\mc-l
 
 ---
 
+### 3.14 界面中文看着糊
+
+**现象**：品牌区副标题之类的小字中文糊成一团、笔画粘在一起。
+
+**原因**：`f_tiny` 用的是 **8 点**。Tk 的正数点是 point，8 点算下来汉字只有
+**12px 高**，1080p 上中文就糊了。
+
+**修法**（1.2.8）：整张字号表上调一档，副标题改用 `f_small`（10 点，15px）：
+
+| 用途 | 之前 | 现在 |
+| --- | --- | --- |
+| f_title | 14 | 15 |
+| f_card_title | 11 | 12 |
+| f_body | 10 | 11 |
+| f_small | 9 | 10 |
+| f_tiny | 8 | 9 |
+| f_stat | 17 | 18 |
+
+**自己改字号**：`client/mclink_gui.py` 里 `self.f_tiny = (FONT, 9)` 这一组。
+⚠️ 字号放大会把对话框撑高，改完要重量一遍
+（四个对话框都是"按内容定尺寸"或"固定尺寸"，撑过头会切按钮）。
+
+### 3.15 openssl 探测到跑不起来的程序
+
+**现象**：装完 Git for Windows 后 `tls_test.py` 从 18/18 掉到 3/18，
+报"证书和私钥就绪"失败；严重时**服务端会静默退回明文模式**。
+
+**原因**：`find_openssl()` 原来只判断 `os.path.exists()`。Git 自带两个 openssl：
+
+```
+Git\usr\bin\openssl.exe      rc=3221225794  "couldn't create signal pipe, Win32 error 5"   ← 坏的
+Git\mingw64\bin\openssl.exe  rc=0           "OpenSSL 3.5.7"                                ← 好的
+```
+
+它返回了坏的 `usr/bin` 那个 → 调用方以为能签证书 → 签名失败 →
+**默默退回明文**（你以为开了 TLS，其实没有）。测试那边则一直等证书出现直到超时。
+
+**修法**（1.2.8）：新增 `_openssl_works()`，每个候选**真的跑一次
+`openssl version`**（returncode 0 且输出含 "OpenSSL"）才算找到，否则试下一个。
+
+**怎么确认**：
+
+```powershell
+cd mc-link\server
+python -c "import mclink_server as s; print(s.find_openssl())"
+```
+
+返回的路径应该是**能跑起来**的那个。手动验一下：
+
+```powershell
+& "C:\Program Files\Git\mingw64\bin\openssl.exe" version
+```
+
+> 这里有个通用教训：**探测外部工具要验证"能不能用"，不是"在不在"**。
+> 这个 bug 同时表现为"测试挂掉"和"安全问题"（静默降级成明文），
+> 所以别把它当成单纯的测试问题。
+
 ## 4. 维修操作
 
 ### 4.1 改管理员密钥
